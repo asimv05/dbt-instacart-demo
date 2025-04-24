@@ -1,0 +1,12 @@
+version: 2
+
+models:
+  - name: stg_products
+    description: Staged product table which contains product aisle and department information.
+    columns:
+
+      - name: product_id
+        description: Primary key for the table
+        tests:
+          - unique
+          - not_null

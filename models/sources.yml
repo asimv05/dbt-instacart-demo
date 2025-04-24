@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: instacart_raw
+    schema: RAW_INSTACART       
+    tables:
+      - name: orders
+      - name: order_products
+      - name: products
+      - name: aisles
+      - name: departments

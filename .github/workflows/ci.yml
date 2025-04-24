@@ -1,0 +1,73 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  dbt-ci:
+    runs-on: ubuntu-latest
+    env:
+      DBT_PROFILES_DIR: ~/.dbt
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry using snok/install-poetry (version 2.1.1)
+        uses: snok/install-poetry@v1
+        with:
+          version: '2.1.1'
+
+      - name: Install dependencies via Poetry
+        run: poetry install --no-interaction --no-root
+
+      - name: Create and verify DBT profiles directory
+        run: |
+          mkdir -p /home/runner/.dbt
+          ls -la /home/runner/.dbt
+          echo "DBT profiles directory created at /home/runner/.dbt"
+
+      - name: Configure dbt profiles.yml with explicit path
+        run: |
+          cat <<EOF > /home/runner/.dbt/profiles.yml
+          dbt_instacart_demo:
+            target: dev
+            outputs:
+              dev:
+                type: snowflake
+                account: "${{ secrets.SNOWFLAKE_ACCOUNT }}"
+                user: "${{ secrets.SNOWFLAKE_USER }}"
+                password: "${{ secrets.SNOWFLAKE_PASSWORD }}"
+                role: "${{ secrets.SNOWFLAKE_ROLE }}"
+                database: "${{ secrets.SNOWFLAKE_DATABASE }}"
+                warehouse: "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
+                schema: DBT_INSTACART_DEMO
+          EOF
+          cat /home/runner/.dbt/profiles.yml
+          echo "profiles.yml created and contains content"
+
+      - name: Run dbt debug with verbose output
+        run: |
+          echo "Running dbt debug with profiles dir: $DBT_PROFILES_DIR"
+          poetry run dbt debug --profiles-dir=/home/runner/.dbt --debug
+
+      - name: Install dbt dependencies
+        if: success()
+        run: poetry run dbt deps --profiles-dir=/home/runner/.dbt
+
+      - name: Build dbt models
+        if: success()
+        run: poetry run dbt run --profiles-dir=/home/runner/.dbt
+
+      - name: Run dbt tests
+        if: success()
+        run: poetry run dbt test --profiles-dir=/home/runner/.dbt
